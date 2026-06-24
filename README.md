@@ -1,105 +1,202 @@
 # Test Kafka
 
-Spring Boot + Apache Kafka project with a producer and consumer application, plus a Dockerized environment with ZooKeeper, Kafka Broker, and Kafdrop.
+Proyecto Spring Boot con Apache Kafka que implementa un **productor** y un **consumidor** de mensajes, junto con un entorno Dockerizado con ZooKeeper, Kafka Broker y Kafdrop.
 
-## Tech Stack
+## Tecnologias
 
 - Java 25
 - Spring Boot 4.1.0
-- Apache Kafka (Confluent)
+- Apache Kafka (Confluent 7.4.4)
 - Maven
 - Docker & Docker Compose
 - Lombok
+- OpenAPI / Swagger (springdoc)
 - Kafdrop (Kafka web UI)
+- Jackson (JSON serializacion con JavaTimeModule)
 
-## Project Structure
+## Estructura del proyecto
 
 ```
 testkafka/
-├── docker-compose.yml              # Kafka infrastructure (ZooKeeper, Broker, Kafdrop)
-├── producer_kafka/                 # Producer application (Spring Boot)
+├── docker-compose.yml              # Infraestructura Kafka (ZooKeeper, Broker, Kafdrop)
+│
+├── producer_kafka/                 # Aplicacion productora (puerto 8080)
 │   ├── pom.xml
 │   └── src/main/java/com/backend/producer_kafka/
 │       ├── ProducerKafkaApplication.java
 │       ├── config/
-│       │   ├── KafkaAdminConfig.java               # Admin: auto-creates "str-topic"
-│       │   └── StringProducerFactoryConfig.java     # ProducerFactory + KafkaTemplate
+│       │   ├── KafkaAdminConfig.java                # Admin: crea topics automaticamente
+│       │   ├── StringProducerFactoryConfig.java      # ProducerFactory con acks=all, retries, compression
+│       │   ├── JacksonConfig.java                    # ObjectMapper con JavaTimeModule
+│       │   └── OpenApiConfig.java                   # Documentacion Swagger
+│       ├── dto/
+│       │   ├── MessageDTO.java                      # Request: id, content, source, timestamp
+│       │   └── MessageResponse.java                 # Response: messageId, partition, offset, status
+│       ├── exception/
+│       │   └── GlobalExceptionHandler.java          # Manejador global de errores
 │       ├── resource/
-│       │   └── StringProducerResource.java          # POST /producer - REST endpoint
+│       │   └── StringProducerResource.java          # POST /producer, GET /producer/health
 │       └── services/
-│           └── StringProducerService.java           # Sends messages to topic
-└── consumer_kafka/                 # Consumer application (Spring Boot)
+│           └── StringProducerService.java           # Envia mensajes al topic
+│
+└── consumer_kafka/                 # Aplicacion consumidora (puerto 8100)
     ├── pom.xml
     └── src/main/java/com/backend/consumer_kafka/
         ├── ConsumerKafkaApplication.java
         ├── config/
-        │   └── StringConsumerConfig.java            # ConsumerFactory + ListenerFactory
-        └── listeners/
-            └── SrtCustomerListener.java             # Kafka listener for "str-topic"
+        │   ├── StringConsumerConfig.java            # ConsumerFactory, DLT, batch, interceptor
+        │   └── JacksonConfig.java                   # ObjectMapper con JavaTimeModule
+        ├── controller/
+        │   └── ConsumerController.java              # GET /consumer/health, GET /consumer/info
+        ├── dto/
+        │   └── MessageDTO.java                     # DTO del mensaje recibido
+        ├── listeners/
+        │   ├── SrtCustomerListener.java             # Listener principal (grupo str-group)
+        │   ├── SrtPartitionConsumerListener.java    # Demostracion de particiones (0, 1) y grupo-2
+        │   ├── BatchConsumerListener.java           # Consumidor por lotes (grupo str-group-batch)
+        │   └── DltConsumerListener.java            # Consumidor del Dead Letter Topic
+        └── services/
+            ├── IStringConsumerService.java          # Interfaz del servicio
+            └── StringConsumerService.java           # Procesamiento de mensajes
 ```
 
-## Prerequisites
+## Requisitos
 
 - Docker & Docker Compose
 - JDK 25
 - Apache Maven
 
-## Quick Start
+## Inicio rapido
 
-### 1. Start Kafka infrastructure
+### 1. Iniciar infraestructura Kafka
 
 ```bash
 docker-compose up -d
 ```
 
-This starts:
-- **ZooKeeper** on port `2181`
-- **Kafka Broker** on port `9092`
-- **Kafdrop** (UI) at `http://localhost:19000`
+Esto inicia:
+- **ZooKeeper** en el puerto `2181`
+- **Kafka Broker** en el puerto `9092`
+- **Kafdrop** (UI web) en `http://localhost:19000`
 
-### 2. Run the producer
+### 2. Ejecutar el productor
 
 ```bash
 cd producer_kafka
 ./mvnw spring-boot:run
 ```
 
-Producer starts on port `8080`.
+El productor inicia en el puerto `8080`.
 
-### 3. Run the consumer (in another terminal)
+### 3. Ejecutar el consumidor (en otra terminal)
 
 ```bash
 cd consumer_kafka
 ./mvnw spring-boot:run
 ```
 
-Consumer starts on port `8100`.
+El consumidor inicia en el puerto `8100`.
 
-### 4. Send a message
+### 4. Enviar un mensaje
 
 ```bash
 curl -X POST http://localhost:8080/producer \
-  -H "Content-Type: text/plain" \
-  -d "Hello Kafka!"
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hola Kafka!"}'
+```
+
+Respuesta exitosa:
+```json
+{
+  "messageId": "uuid-del-mensaje",
+  "content": "Hola Kafka!",
+  "partition": 0,
+  "offset": 0,
+  "timestamp": 1719000000000,
+  "status": "SENT"
+}
 ```
 
 ## Endpoints
 
-| Method | Path         | Description                      |
-|--------|--------------|----------------------------------|
-| POST   | `/producer`  | Sends a message to `str-topic`   |
+### Productor (puerto 8080)
 
-## Ports
+| Metodo | Path                | Descripcion                                  |
+|--------|---------------------|----------------------------------------------|
+| POST   | `/producer`         | Envia un mensaje JSON a `str-topic`          |
+| GET    | `/producer/health`  | Health check del productor                   |
+| GET    | `/swagger-ui.html`  | Documentacion interactiva Swagger            |
 
-| Service          | Port   |
-|------------------|--------|
-| Producer         | 8080   |
-| Consumer         | 8100   |
-| Kafka Broker     | 9092   |
-| Kafdrop (UI)     | 19000  |
+### Consumidor (puerto 8100)
+
+| Metodo | Path                | Descripcion                                  |
+|--------|---------------------|----------------------------------------------|
+| GET    | `/consumer/health`  | Health check del consumidor                  |
+| GET    | `/consumer/info`    | Informacion del servicio consumidor          |
+
+## Formato del mensaje (MessageDTO)
+
+```json
+{
+  "id": "uuid (opcional, se autogenera)",
+  "content": "texto del mensaje (requerido, max 500 chars)",
+  "source": "origen (opcional, default: producer_kafka)",
+  "timestamp": "ISO-8601 (opcional, se autogenera)"
+}
+```
+
+## Consumidores
+
+| Grupo           | Tipo        | Particiones | Descripcion                              |
+|-----------------|-------------|-------------|------------------------------------------|
+| `str-group`     | Individual  | Todas       | Consumidor principal con servicio        |
+| `group-1`       | Particion 0 | Solo 0      | Demostracion de particion especifica     |
+| `group-1`       | Particion 1 | Solo 1      | Demostracion de particion especifica     |
+| `group-2`       | Individual  | Todas       | Consumidor adicional de demostracion     |
+| `str-group-batch` | Batch     | Todas       | Procesamiento por lotes                  |
+| `str-group-dlt` | Individual  | Todas       | Procesa mensajes del Dead Letter Topic   |
 
 ## Topics
 
-The `str-topic` is auto-created when the producer starts with:
-- 2 partitions
-- 1 replica
+Los topics se crean automaticamente al iniciar el productor:
+
+| Topic             | Particiones | Replicas | Descripcion                              |
+|-------------------|-------------|----------|------------------------------------------|
+| `str-topic`       | 2           | 1        | Topic principal de mensajes              |
+| `str-topic.DLT`   | 1           | 1        | Dead Letter Topic para mensajes fallidos |
+
+## Puertos
+
+| Servicio          | Puerto   |
+|-------------------|----------|
+| Productor         | 8080     |
+| Consumidor        | 8100     |
+| Kafka Broker      | 9092     |
+| Kafdrop (UI)      | 19000    |
+
+## Manejo de errores
+
+- **Validacion**: los mensajes con `content` vacio o mayor a 500 chars reciben un `400 Bad Request`
+- **JSON malformado**: el manejador global retorna `400 Bad Request` con descripcion del error
+- **Reintentos**: el consumidor reintenta 3 veces con 1 segundo de espera antes de enviar al DLT
+- **Dead Letter Topic**: los mensajes que fallan todos los reintentos se publican en `str-topic.DLT`
+
+## Configuracion del productor
+
+- `acks=all`: espera confirmacion de todos los replicas
+- `retries=3`: reintenta envios fallidos
+- `compression.type=snappy`: comprime mensajes
+- `linger.ms=5`: agrupa mensajes en lotes
+- `batch.size=16384`: tamanio optimo de lote (16KB)
+
+## Documentacion de la API
+
+La documentacion interactiva (Swagger) esta disponible en:
+```
+http://localhost:8080/swagger-ui.html
+```
+
+## Notas
+
+- No es necesario tener Kafka instalado localmente; la infraestructura se ejecuta con Docker
+- Los warnings de conexion en los tests son normales cuando no hay un broker Kafka corriendo
