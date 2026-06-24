@@ -7,6 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+/**
+ * Configuracion global de Jackson para serializacion JSON.
+ * Registra el modulo JavaTime para manejar fechas ISO-8601
+ * y deshabilita la escritura de fechas como timestamps numericos.
+ */
 @Configuration
 public class JacksonConfig {
 

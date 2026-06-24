@@ -13,10 +13,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Manejador global de excepciones para la API REST del productor.
+ * Procesa errores de validacion, JSON malformado y errores internos.
+ */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * Maneja errores de validacion de campos (@Valid).
+     * Retorna un mapa con los nombres de los campos y sus mensajes de error.
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         var errors = ex.getBindingResult().getFieldErrors().stream()
@@ -30,21 +38,27 @@ public class GlobalExceptionHandler {
                 "details", errors));
     }
 
+    /**
+     * Maneja errores de JSON malformado en el body de la peticion.
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, Object>> handleMalformedJson(HttpMessageNotReadableException ex) {
-        log.warn("Malformed request body: {}", ex.getMessage());
+        log.warn("Cuerpo de peticion malformado: {}", ex.getMessage());
         return ResponseEntity.badRequest().body(Map.of(
                 "error", "malformed_request",
-                "message", "Invalid request body. Ensure JSON format is correct.",
+                "message", "El cuerpo de la peticion no es un JSON valido.",
                 "timestamp", Instant.now().toString()));
     }
 
+    /**
+     * Manejo generico de excepciones no contempladas.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
-        log.error("Unexpected error: {}", ex.getMessage(), ex);
+        log.error("Error inesperado: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "error", "internal_error",
-                "message", "An unexpected error occurred",
+                "message", "Ocurrio un error inesperado",
                 "timestamp", Instant.now().toString()));
     }
 }

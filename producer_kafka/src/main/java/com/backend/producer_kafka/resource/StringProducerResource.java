@@ -20,6 +20,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 
+/**
+ * Controlador REST del productor Kafka.
+ * Expone endpoints para enviar mensajes al topic y verificar el estado del servicio.
+ */
 @RestController
 @RequestMapping("/producer")
 public class StringProducerResource {
@@ -27,12 +31,16 @@ public class StringProducerResource {
     @Autowired
     private IStringProducerService stringProducerService;
 
-    @Operation(summary = "Send a message to Kafka")
+    /**
+     * Envia un mensaje a Kafka. El body debe ser un JSON valido con
+     * los campos de MessageDTO. Retorna los metadatos del mensaje enviado.
+     */
+    @Operation(summary = "Envia un mensaje a Kafka")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "201", description = "Message sent successfully",
+        @ApiResponse(responseCode = "201", description = "Mensaje enviado correctamente",
             content = @Content(schema = @Schema(implementation = MessageResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid input"),
-        @ApiResponse(responseCode = "500", description = "Internal error")
+        @ApiResponse(responseCode = "400", description = "Entrada invalida"),
+        @ApiResponse(responseCode = "500", description = "Error interno")
     })
     @PostMapping
     public ResponseEntity<MessageResponse> sendMessage(@Valid @RequestBody MessageDTO message) {
@@ -40,7 +48,10 @@ public class StringProducerResource {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "Health check")
+    /**
+     * Endpoint de health check para verificar que el servicio esta activo.
+     */
+    @Operation(summary = "Health check del productor Kafka")
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("UP");

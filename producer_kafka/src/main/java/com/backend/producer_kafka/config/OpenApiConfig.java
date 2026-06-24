@@ -6,6 +6,10 @@ import org.springframework.context.annotation.Configuration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 
+/**
+ * Configuracion de OpenAPI (Swagger) para documentacion
+ * automatica de los endpoints REST del productor Kafka.
+ */
 @Configuration
 public class OpenApiConfig {
 
@@ -15,6 +19,6 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Kafka Producer API")
                         .version("1.0.0")
-                        .description("REST API for sending messages to Apache Kafka topics"));
+                        .description("API REST para enviar mensajes a topics de Apache Kafka"));
     }
 }
